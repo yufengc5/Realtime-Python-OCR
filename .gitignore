@@ -1,0 +1,13 @@
+
+venv/
+.venv/
+*env/
+craft-env/
+ocr-env/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
