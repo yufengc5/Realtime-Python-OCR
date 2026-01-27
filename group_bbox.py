@@ -3,7 +3,7 @@ import numpy as np
 from CRAFT import run_CRAFT
 
 # Load the image we are going to detect and initialize and run CRAFT
-image_path = 'data/dev_images/mixed_01.jpg'
+image_path = 'data/dev_images/real_life_01.jpg'
 boxes = run_CRAFT(image_path)
 
 # We don't need 8 coordinates/ 4 points to get the bounding box, 
@@ -30,7 +30,7 @@ rect_boxes = convert_coordinates(boxes)
 # sort the bounding boxes based on their y_min value (for top to bottom and left to right processing)
 sorted_boxes = sorted(rect_boxes, key=lambda box: box[1])
 
-# grouping and merging boxes that are close vertically
+# grouping and merging boxes that are close vertically (and horizontally implicitly)
 merged_boxes = []
 current_group = [sorted_boxes[0]]
 

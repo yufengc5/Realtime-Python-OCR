@@ -4,6 +4,7 @@ venv/
 *env/
 craft-env/
 ocr-env/
+temp/
 
 # Python caches
 __pycache__/
