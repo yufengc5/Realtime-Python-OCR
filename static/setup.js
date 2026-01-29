@@ -8,10 +8,9 @@ async function setupCamera() {
         'audio': false,
         'video': {
           facingMode: { ideal: "environment" },
-          height: {ideal:640},
-          width: {ideal: 480},
-        },
-      });
+          width: { ideal: 960 },
+          height: { ideal: 960},
+      }});
     video.srcObject = stream;
     
     // Handle the video stream once it loads.
@@ -36,7 +35,7 @@ async function main() {
     video.play()
 
     // Set up canvas for livestreaming
-    canvas = document.getElementById('facecanvas');
+    canvas = document.getElementById('cameracanvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx = canvas.getContext('2d');
