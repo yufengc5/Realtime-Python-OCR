@@ -15,6 +15,8 @@ def home():
 
 @app.post("/frame")
 async def process_frame(file: UploadFile = File(...)):
+    global frame_count
+    frame_count += 1
     img_bytes = await file.read()
     img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
     img = np.array(img)
@@ -24,4 +26,6 @@ async def process_frame(file: UploadFile = File(...)):
 
     # TEMP: just return image size
     h, w = img.shape[:2]
+    if frame_count % 10 == 0:  # print every 10 frames
+        print(f"[frame {frame_count}] {w}x{h}")
     return {"width": w, "height": h}
