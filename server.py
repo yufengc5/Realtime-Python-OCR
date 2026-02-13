@@ -5,7 +5,16 @@ from PIL import Image
 import io
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+import logging
+import os
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+SAVE_DIR = "captured_frames"
+os.makedirs(SAVE_DIR, exist_ok=True)
+
+frame_count = 0
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -24,8 +33,10 @@ async def process_frame(file: UploadFile = File(...)):
     # Convert RGB → BGR for OpenCV
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-    # TEMP: just return image size
+    if frame_count % 10 == 0:
+        filename = f"{SAVE_DIR}/frame_{frame_count}.jpg"
+        cv2.imwrite(filename, img)
+        logger.info(f"Saved: {filename}")
+
     h, w = img.shape[:2]
-    if frame_count % 10 == 0:  # print every 10 frames
-        print(f"[frame {frame_count}] {w}x{h}")
     return {"width": w, "height": h}

@@ -1,31 +1,104 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Camera</title>
-    
-    <!-- Import latest version of TF.js-->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    
-    <!-- Facemesh model import -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/facemesh"></script>
-
-	<!-- Our code goes in here -->
-    <script src="/static/setup.js"></script>
-
+    <title>Realtime python OCR</title>
+    <style>
+        body { 
+            margin: 0; 
+            background: #111; 
+            color: white; 
+            font-family: sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            height: 100vh;
+        }
+        video { 
+            width: 100%; 
+            max-width: 640px; 
+            border: 2px solid #333; 
+        }
+        #status { 
+            margin-top: 10px; 
+            color: #0f0; 
+            font-size: 1.2rem;
+        }
+    </style>
 </head>
-	
-<body style="background-color:ghostwhite;">
-	
-	<!-- HTML Canvas we're drawing onto -->
-	<canvas id="cameracanvas"></canvas>
-  
-	<!-- Video that handles the browser access to the camera. The transforms mirror the feed -->
-	<video autoplay muted hidden playsinline id="video"  style="
-		-webkit-transform: scaleX(-1);
-		transform: scaleX(-1);
-		width: auto;
-		height: auto;">
-	</video>
+<body>
+    <video id="video" autoplay playsinline></video>
+    
+    <div id="status">Starting camera...</div>
+    
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const statusDiv = document.getElementById('status');
+        const context = canvas.getContext('2d');
+
+        // 1. Start the Camera
+        async function startCamera() {
+            try {
+                // Ask for the rear camera (environment)
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: { exact: "environment" } } 
+                }).catch(e => {
+                    // Fallback if "exact" fails (e.g. on laptops)
+                    return navigator.mediaDevices.getUserMedia({ video: true });
+                });
+
+                video.srcObject = stream;
+                statusDiv.innerText = "Camera Active. Sending frames...";
+                
+                // Start the loop to send images
+                setInterval(sendFrame, 500); // Send every 500ms (2 times per second)
+
+            } catch (err) {
+                statusDiv.innerText = "Error: " + err.message;
+                statusDiv.style.color = "red";
+            }
+        }
+
+        // 2. Capture and Upload the Image
+        function sendFrame() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                // Resize canvas to match video
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                // Draw the current video frame to the canvas
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Convert canvas to a Blob (like a file) and upload
+                canvas.toBlob((blob) => {
+                    const formData = new FormData();
+                    formData.append('file', blob, 'image.jpg');
+
+                    // Send to your Python backend
+                    fetch('/frame', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Success! Update status text with a simple "blink" effect
+                        statusDiv.innerText = `Sent: ${data.width}x${data.height} px`;
+                        statusDiv.style.opacity = (statusDiv.style.opacity === '1' ? '0.7' : '1');
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        statusDiv.innerText = "Upload failed (Check PC console)";
+                        statusDiv.style.color = "orange";
+                    });
+                }, 'image/jpeg', 0.7); // 0.7 = 70% quality JPG
+            }
+        }
+
+        // Initialize
+        startCamera();
+    </script>
 </body>
 </html>
