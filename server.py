@@ -5,6 +5,8 @@ from PIL import Image
 import io
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from group_bbox import extract_and_merge_text_regions
+from recognition import recognize
 import logging
 import os
 
@@ -36,7 +38,14 @@ async def process_frame(file: UploadFile = File(...)):
     if frame_count % 10 == 0:
         filename = f"{SAVE_DIR}/frame_{frame_count}.jpg"
         cv2.imwrite(filename, img)
-        logger.info(f"Saved: {filename}")
+        
+        # Run text detection and recognition on the saved frame
+        cropped_images, final_boxes = extract_and_merge_text_regions(filename, show_result=False)
+        recognized_texts = []
+        for crop in cropped_images:
+            recognized_texts.append(recognize(crop))
 
+        logger.info(f"Saved: {filename}, Recognized texts: {recognized_texts}")
+        
     h, w = img.shape[:2]
     return {"width": w, "height": h}

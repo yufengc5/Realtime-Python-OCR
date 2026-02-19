@@ -45,6 +45,7 @@ def recognize(crop):
         return recognize_with_trocr(crop, processor_hw, model_hw)
 
 
-img = cv2.imread("temp/merged_crop_2.jpg")
-text = recognize(img)
-print(f"Recognized text: {text}")
+if __name__ == "__main__":
+    img = cv2.imread("temp/merged_crop_2.jpg")
+    text = recognize(img)
+    print(f"Recognized text: {text}")
