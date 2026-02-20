@@ -4,7 +4,15 @@ import os
 from CRAFT import run_CRAFT
 
 def convert_coordinates(boxes):
-    """Converts 8-coordinate/4-point boxes to rectangles [x_min, y_min, x_max, y_max]."""
+    """
+    Converts 8-coordinate/4-point boxes to rectangles [x_min, y_min, x_max, y_max].
+    
+    Parameters:
+        boxes (list): List of boxes, where each box is a list of 4 points
+    
+    Returns:
+        rect_boxes (list): List of rectangles in the format [x_min, y_min, x_max, y_max]
+    """
     rect_boxes = []
     for box in boxes:
         x_coords = [point[0] for point in box]
@@ -33,17 +41,17 @@ def extract_and_merge_text_regions(image_path, threshold=20, output_dir="temp", 
         cropped_images (list): List of cropped cv2 image arrays.
         final_boxes (list): List of final merged bounding box coordinates.
     """
-    # 1. Run CRAFT to get initial boxes
+    # Run CRAFT to get initial boxes
     boxes = run_CRAFT(image_path)
     if not len(boxes):
         print("No text detected.")
         return [], []
 
-    # 2. Convert to standard rectangles and sort top-to-bottom
+    # Convert to the bounding boxes to rectangles and sort them from top-to-bottom
     rect_boxes = convert_coordinates(boxes)
     sorted_boxes = sorted(rect_boxes, key=lambda box: box[1])
 
-    # 3. Group and merge boxes that are vertically close
+    # Group and merge boxes that are vertically close
     merged_boxes = []
     current_group = [sorted_boxes[0]]
 
@@ -58,7 +66,7 @@ def extract_and_merge_text_regions(image_path, threshold=20, output_dir="temp", 
             current_group = [curr_box]
     merged_boxes.append(current_group)
 
-    # 4. Calculate the final enclosing bounding box for each group
+    # Compute the final bounding box for each group of bounding boxes
     final_boxes = []
     for group in merged_boxes:
         x_min = min([box[0] for box in group])
@@ -67,21 +75,20 @@ def extract_and_merge_text_regions(image_path, threshold=20, output_dir="temp", 
         y_max = max([box[3] for box in group])  
         final_boxes.append([x_min, y_min, x_max, y_max])
 
-    # 5. Crop original image, save, and optionally display
+    # Crop the original image, save it and display
     image = cv2.imread(image_path)
     if image is None:
         raise FileNotFoundError(f"Could not load image at path: {image_path}")
         
     cropped_images = []
     
-    # Ensure output directory exists if we are saving
     if save_crops and not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     for idx, box in enumerate(final_boxes):
         x_min, y_min, x_max, y_max = box
         
-        # Ensure boundaries stay within image dimensions
+        # ensure coordinates are within boundaries of the image
         x_min = int(max(0, x_min))
         y_min = int(max(0, y_min))
         x_max = int(min(image.shape[1], x_max))
@@ -90,7 +97,7 @@ def extract_and_merge_text_regions(image_path, threshold=20, output_dir="temp", 
         crop = image[y_min:y_max, x_min:x_max]
         cropped_images.append(crop)
 
-        # Save and draw
+        # Save and display results
         if save_crops:
             crop_path = os.path.join(output_dir, f"merged_crop_{idx}.jpg")
             cv2.imwrite(crop_path, crop)
