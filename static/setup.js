@@ -30,21 +30,21 @@ var canvas;
 var ctx;
 
 async function main() {
-    // Set up front-facing camera
+    // set up camera
     await setupCamera();
     video.play()
 
-    // Set up canvas for livestreaming
+    // set up canvas 
     canvas = document.getElementById('cameracanvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx = canvas.getContext('2d');
   
-    // Start continuous drawing function
+    // start continuous drawing function
     drawWebcamContinuous();
   
     console.log("Camera setup done")
 }
 
-// Delay the camera request by a bit, until the main body has loaded
+// Run the main function once the page is fully loaded
 document.addEventListener("DOMContentLoaded", main);

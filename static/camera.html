@@ -44,12 +44,12 @@
 
         #ocrText {
             margin: 0;
-            white-space: pre-wrap;  /* wraps long lines */
+            white-space: pre-wrap; 
             word-break: break-word;
             color: #111;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
             font-size: 2rem;
-            max-height: 35vh;       /* keep it from taking whole screen */
+            max-height: 35vh;    
             overflow: auto;
         }
 
@@ -74,21 +74,20 @@
 		const ocrTextEl = document.getElementById('ocrText');
         const context = canvas.getContext('2d');
 
-        // 1. Start the Camera
+        // start the Camera
         async function startCamera() {
             try {
-                // Ask for the rear camera (environment)
+                // get the rear camera (environment)
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: { exact: "environment" } } 
                 }).catch(e => {
-                    // Fallback if "exact" fails (e.g. on laptops)
                     return navigator.mediaDevices.getUserMedia({ video: true });
                 });
 
                 video.srcObject = stream;
                 statusDiv.innerText = "Camera Active. Sending frames...";
                 
-                // Start the loop to send images
+                // Start the loop to send images and load text
                 setInterval(sendFrame, 500); // Send every 500ms (2 times per second)
 				setInterval(loadTxt, 700); // Load text every 700ms (slightly offset from image sending)
 
@@ -98,29 +97,28 @@
             }
         }
 
-        // 2. Capture and Upload the Image
+        // capture and upload the Image
         function sendFrame() {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // Resize canvas to match video
+                // resize
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 
                 // Draw the current video frame to the canvas
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                // Convert canvas to a Blob (like a file) and upload
+                // Convert canvas to a Blob and upload
                 canvas.toBlob((blob) => {
                     const formData = new FormData();
                     formData.append('file', blob, 'image.jpg');
 
-                    // Send to your Python backend
+                    // send to backend
                     fetch('/frame', {
                         method: 'POST',
                         body: formData
                     })
                     .then(response => response.json())
                     .then(data => {
-                        // Success! Update status text with a simple "blink" effect
                         statusDiv.innerText = `Sent: ${data.width}x${data.height} px`;
                         statusDiv.style.opacity = (statusDiv.style.opacity === '1' ? '0.7' : '1');
                     })
@@ -129,10 +127,10 @@
                         statusDiv.innerText = "Upload failed (Check PC console)";
                         statusDiv.style.color = "orange";
                     });
-                }, 'image/jpeg', 0.7); // 0.7 = 70% quality JPG
+                }, 'image/jpeg', 0.7); 
             }
         }
-
+		// Load recognized text from the server
 		async function loadTxt() {
             try {
                 const res = await fetch('/text', { cache: 'no-store' });
