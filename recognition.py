@@ -46,6 +46,6 @@ def recognize(crop):
 
 
 if __name__ == "__main__":
-    img = cv2.imread("temp/merged_crop_2.jpg")
+    img = cv2.imread("temp/merged_crop_0.jpg")
     text = recognize(img)
     print(f"Recognized text: {text}")

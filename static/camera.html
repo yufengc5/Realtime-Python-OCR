@@ -5,13 +5,14 @@
     <style>
         body { 
             margin: 0; 
-            background: #111; 
+            background: white; 
             color: white; 
             font-family: sans-serif; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
-            justify-content: center;
+            justify-content: flex-start;
+			padding-top: 20px;
             height: 100vh;
         }
         video { 
@@ -24,12 +25,45 @@
             color: #0f0; 
             font-size: 1.2rem;
         }
+
+		#ocrBox {
+            width: 100%;
+            max-width: 640px;
+            margin-top: 12px;
+            border: 2px solid #333;
+            padding: 10px;
+            box-sizing: border-box;
+            background: #f7f7f7;
+        }
+		#ocrTitle {
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #111;
+			font-size: 2rem;
+        }
+
+        #ocrText {
+            margin: 0;
+            white-space: pre-wrap;  /* wraps long lines */
+            word-break: break-word;
+            color: #111;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            font-size: 2rem;
+            max-height: 35vh;       /* keep it from taking whole screen */
+            overflow: auto;
+        }
+
     </style>
 </head>
 <body>
     <video id="video" autoplay playsinline></video>
     
     <div id="status">Starting camera...</div>
+
+	<div id="ocrBox">
+        <div id="ocrTitle">Recognized text</div>
+        <pre id="ocrText">Waiting for text...</pre>
+    </div>
     
     <canvas id="canvas" style="display:none;"></canvas>
 
@@ -37,6 +71,7 @@
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const statusDiv = document.getElementById('status');
+		const ocrTextEl = document.getElementById('ocrText');
         const context = canvas.getContext('2d');
 
         // 1. Start the Camera
@@ -55,6 +90,7 @@
                 
                 // Start the loop to send images
                 setInterval(sendFrame, 500); // Send every 500ms (2 times per second)
+				setInterval(loadTxt, 700); // Load text every 700ms (slightly offset from image sending)
 
             } catch (err) {
                 statusDiv.innerText = "Error: " + err.message;
@@ -94,6 +130,18 @@
                         statusDiv.style.color = "orange";
                     });
                 }, 'image/jpeg', 0.7); // 0.7 = 70% quality JPG
+            }
+        }
+
+		async function loadTxt() {
+            try {
+                const res = await fetch('/text', { cache: 'no-store' });
+                if (!res.ok) return;
+
+                const txt = await res.text();
+                ocrTextEl.textContent = txt.trim() ? txt : "No text yet...";
+            } catch (e) {
+                ocrTextEl.textContent = "Could not load text.";
             }
         }
 
