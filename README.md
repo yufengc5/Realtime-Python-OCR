@@ -11,17 +11,10 @@
     </li>
     <li>
       <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
+    <li><a href="#important-notes">Important Notes</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
   </ol>
 
 
@@ -66,3 +59,56 @@ This project is currently in development. At this stage, it includes the core fu
   
 Future updates will focus on implementing these improvements.
 
+## Getting Started
+
+To get a local copy of this project and run locally, follow these simple example steps.
+
+1. Clone the repository
+
+```sh
+git clone https://github.com/yufengc5/Realtime-Python-OCR
+cd Realtime-Python-OCR
+```
+2. Create a virtual environment (recommended)
+
+3. Install dependencies
+
+```sh
+pip install -r requirements.txt
+```
+
+4. Start the FastAPI server
+```sh
+uvicorn server:app --host 127.0.0.1 --port 8000
+```
+6. Expose the Server with Tailscale
+```sh
+tailscale serve --https=443 http://127.0.0.1:8000
+```
+
+7. Access from your phone
+- Make sure Tailscale is installed and connected.
+- Open any browser.
+- Navigate to:
+```sh
+http://127.0.0.1:8000
+```
+
+You should now see the live camera interface and OCR results.
+
+## Important Notes
+
+- Both devices must be connected to the same Tailscale network.
+- Ensure camera permissions are enabled in your phone browser.
+- First model load may take a few seconds.
+- For better performance, GPU acceleration is recommended.
+
+## License
+
+Distributed under GPL-3.0 license. See `LICENSE` for more information.
+
+## Contact
+
+For any questions or suggestions, feel free to reach out to me via:
+
+Email: yufengc05@gmail.com
