@@ -5,9 +5,9 @@
   <ol>
     <li>
       <a href="#about-the-project">About The Project</a>
-      <ul>
-        <li><a href="#teck-stack">Teck Stack</a></li>
-      </ul>
+        <li><a href="#tech-stack">Tech Stack</a>
+          <li><a href="#project-status">Project Status</a>
+        </li>
     </li>
     <li>
       <a href="#getting-started">Getting Started</a>
@@ -51,8 +51,18 @@ The frameworks/libraries used in this project include:
 [![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML)
 [![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)
 #### Machine Learning Models
-[![CRAFT OCR](https://img.shields.io/badge/CRAFT-Text_Detector-blue?style=for-the-badge)]()
-[![TrOCR](https://img.shields.io/badge/TrOCR-Transformer_OCR-orange?style=for-the-badge)]()
+[![CRAFT OCR](https://img.shields.io/badge/CRAFT-Text_Detector-blue?style=for-the-badge)](https://github.com/clovaai/CRAFT-pytorch)
+[![TrOCR](https://img.shields.io/badge/TrOCR-Transformer_OCR-orange?style=for-the-badge)](https://huggingface.co/docs/transformers/model_doc/trocr)
 #### Networking
 [![Tailscale](https://img.shields.io/badge/Tailscale-242424?style=for-the-badge&logo=tailscale&logoColor=white)](https://tailscale.com/)
+
+## Project Status
+
+This project is currently in development. At this stage, it includes the core functionality of detecting and recognizing text from live camera frames in real time. However, there are still several areas that require improvement:
+
+- Recognition precision needs further optimization, particularly in challenging lighting conditions and complex backgrounds.
+- Inference speed should be improved to achieve faster response.
+- Multilingual support is not yet implemented and only supports english.
+  
+Future updates will focus on implementing these improvements.
 
