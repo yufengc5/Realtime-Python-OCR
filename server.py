@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File
 import numpy as np
 import cv2
 from PIL import Image
+import glob
 import io
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,62 +22,106 @@ os.makedirs(TEXT_DIR, exist_ok=True)
 
 frame_count = 0
 latest_text_path = None
+latest_text_value = "No text yet..."
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.get("/")
 def home():
+    """
+    Main interface of the application.
+    """
     return HTMLResponse(open("static/camera.html").read())
+
 
 @app.get("/text", response_class=PlainTextResponse)
 def get_latest_text():
     """
-    Returns the content of the most recently written OCR text file.
+    Returns the latest OCR text. Falls back to scanning the directory if needed.
     """
-    global latest_text_path
+    global latest_text_value, latest_text_path
 
-    if not latest_text_path or not os.path.exists(latest_text_path):
+    # try fetching the latest cached text
+    if latest_text_value and latest_text_value != "No text yet...":
+        return latest_text_value
+
+    # get the latest text file from the directory
+    directory = TEXT_DIR
+    if not os.path.exists(directory):
         return "No text yet..."
+    
+    # get all the files and find the latest one
+    list_of_files = glob.glob(os.path.join(directory, "*.txt"))
+    if not list_of_files:
+        return "No text yet..."
+    latest_file = max(list_of_files, key=os.path.getmtime)
 
+    # read the latest text file
     try:
-        with open(latest_text_path, "r", encoding="utf-8") as f:
-            return f.read()
+        with open(latest_file, "r", encoding="utf-8") as f:
+            text = f.read().strip()
+            latest_text_path = latest_file
+            latest_text_value = text if text else "No text found in this frame."
+            return latest_text_value
     except Exception as e:
-        logger.exception("Failed reading latest text file")
+        logger.exception(f"Failed reading latest text file: {latest_file}")
         return f"Error reading text: {e}"
 
 
 @app.post("/frame")
 async def process_frame(file: UploadFile = File(...)):
-    global frame_count, latest_text_path
+    """
+    Receives the video frame and runs the pipeline.
+    """
+    global frame_count, latest_text_path, latest_text_value
+
     frame_count += 1
     img_bytes = await file.read()
     img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
     img = np.array(img)
 
-    # Convert RGB → BGR for OpenCV
+    # convert to BGR
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
+    recognized_text = latest_text_value
+
+    # Save every 2nd frame to reduce load and run OCR on it
     if frame_count % 2 == 0:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         filename = f"{SAVE_DIR}/frame_{timestamp}.jpg"
         cv2.imwrite(filename, img)
-        
-        # Run text detection and recognition on the saved frame
-        cropped_images, final_boxes = extract_and_merge_text_regions(filename, show_result=False)
-        recognized_texts = []
-        for crop in cropped_images:
-            recognized_texts.append(recognize(crop))
 
-        # Save recognized texts to a file
-        text_filename = f"{TEXT_DIR}/text_{timestamp}.txt"
-        with open(text_filename, "w", encoding="utf-8") as f:
-            for text in recognized_texts:
-                f.write(text + "\n")
+        try:
+            # Run text detection and recognition on the saved frame
+            cropped_images, final_boxes = extract_and_merge_text_regions(filename, show_result=False)
 
-        latest_text_path = text_filename    
+            recognized_texts = []
+            for crop in cropped_images:
+                text = recognize(crop)
+                if text and text.strip():
+                    recognized_texts.append(text.strip())
 
-        #logger.info(f"Saved: {filename}, Recognized texts: {recognized_texts}")
-        
+            recognized_text = "\n".join(recognized_texts).strip()
+            if not recognized_text:
+                recognized_text = "No text found in this frame."
+
+            # Save recognized texts to a file
+            text_filename = f"{TEXT_DIR}/text_{timestamp}.txt"
+            with open(text_filename, "w", encoding="utf-8") as f:
+                f.write(recognized_text)
+
+            latest_text_path = text_filename
+            latest_text_value = recognized_text
+
+        except Exception as e:
+            logger.exception("OCR processing failed")
+            recognized_text = latest_text_value if latest_text_value else f"Error: {e}"
+
     h, w = img.shape[:2]
-    return {"width": w, "height": h}
+    return {
+        "width": w,
+        "height": h,
+        "text": recognized_text,
+        "latest_text_path": latest_text_path
+    }

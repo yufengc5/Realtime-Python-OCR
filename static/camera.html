@@ -2,148 +2,144 @@
 <html>
 <head>
     <title>Realtime python OCR</title>
-    <style>
-        body { 
-            margin: 0; 
-            background: white; 
-            color: white; 
-            font-family: sans-serif; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: flex-start;
-			padding-top: 20px;
-            height: 100vh;
-        }
-        video { 
-            width: 100%; 
-            max-width: 640px; 
-            border: 2px solid #333; 
-        }
-        #status { 
-            margin-top: 10px; 
-            color: #0f0; 
-            font-size: 1.2rem;
-        }
-
-		#ocrBox {
-            width: 100%;
-            max-width: 640px;
-            margin-top: 12px;
-            border: 2px solid #333;
-            padding: 10px;
-            box-sizing: border-box;
-            background: #f7f7f7;
-        }
-		#ocrTitle {
-            font-weight: 700;
-            margin-bottom: 8px;
-            color: #111;
-			font-size: 2rem;
-        }
-
-        #ocrText {
-            margin: 0;
-            white-space: pre-wrap; 
-            word-break: break-word;
-            color: #111;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-            font-size: 2rem;
-            max-height: 35vh;    
-            overflow: auto;
-        }
-
-    </style>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <video id="video" autoplay playsinline></video>
-    
+    <video id="video" autoplay playsinline muted></video>
     <div id="status">Starting camera...</div>
 
-	<div id="ocrBox">
+    <div id="ocrBox">
         <div id="ocrTitle">Recognized text</div>
         <pre id="ocrText">Waiting for text...</pre>
     </div>
-    
+
     <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const statusDiv = document.getElementById('status');
-		const ocrTextEl = document.getElementById('ocrText');
-        const context = canvas.getContext('2d');
+        const ocrTextEl = document.getElementById('ocrText');
+        const context = canvas.getContext('2d', { alpha: false });
 
-        // start the Camera
+        let isSending = false;
+        let latestRequestId = 0;
+        let latestDisplayedRequestId = 0;
+        let stopped = false;
+
+        const MAX_WIDTH = 960;
+        const JPEG_QUALITY = 0.6;
+        const IDLE_DELAY_MS = 80; // delay between requests
+
         async function startCamera() {
             try {
-                // get the rear camera (environment)
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: { exact: "environment" } } 
-                }).catch(e => {
-                    return navigator.mediaDevices.getUserMedia({ video: true });
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: "environment" },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
                 });
 
                 video.srcObject = stream;
-                statusDiv.innerText = "Camera Active. Sending frames...";
-                
-                // Start the loop to send images and load text
-                setInterval(sendFrame, 500); // Send every 500ms (2 times per second)
-				setInterval(loadTxt, 700); // Load text every 700ms (slightly offset from image sending)
 
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => resolve();
+                });
+
+                await video.play();
+
+                statusDiv.innerText = "Camera active. Sending live frames...";
+                statusDiv.style.color = "green";
+
+                processingLoop();
             } catch (err) {
                 statusDiv.innerText = "Error: " + err.message;
                 statusDiv.style.color = "red";
             }
         }
-
-        // capture and upload the Image
-        function sendFrame() {
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // resize
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                
-                // Draw the current video frame to the canvas
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                // Convert canvas to a Blob and upload
-                canvas.toBlob((blob) => {
-                    const formData = new FormData();
-                    formData.append('file', blob, 'image.jpg');
-
-                    // send to backend
-                    fetch('/frame', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        statusDiv.innerText = `Sent: ${data.width}x${data.height} px`;
-                        statusDiv.style.opacity = (statusDiv.style.opacity === '1' ? '0.7' : '1');
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        statusDiv.innerText = "Upload failed (Check PC console)";
-                        statusDiv.style.color = "orange";
-                    });
-                }, 'image/jpeg', 0.7); 
+        // Utility function to scale dimensions while preserving aspect ratio
+        function getScaledSize(srcW, srcH, maxW) {
+            if (srcW <= maxW) {
+                return { width: srcW, height: srcH };
             }
+            const scale = maxW / srcW;
+            return {
+                width: Math.round(srcW * scale),
+                height: Math.round(srcH * scale)
+            };
         }
-		// Load recognized text from the server
-		async function loadTxt() {
+        // Convert canvas to Blob using a Promise-based wrapper
+        function canvasToBlob(canvas, type, quality) {
+            return new Promise((resolve) => {
+                canvas.toBlob(resolve, type, quality);
+            });
+        }
+        // Sends the latest video frame to the server for OCR processing
+        async function sendLatestFrame() {
+            if (isSending || stopped) return;
+            if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+
+            isSending = true;
+            const requestId = ++latestRequestId;
+            const startedAt = performance.now();
+
             try {
-                const res = await fetch('/text', { cache: 'no-store' });
-                if (!res.ok) return;
+                const srcW = video.videoWidth;
+                const srcH = video.videoHeight;
+                const { width, height } = getScaledSize(srcW, srcH, MAX_WIDTH);
 
-                const txt = await res.text();
-                ocrTextEl.textContent = txt.trim() ? txt : "No text yet...";
-            } catch (e) {
-                ocrTextEl.textContent = "Could not load text.";
+                canvas.width = width;
+                canvas.height = height;
+                context.drawImage(video, 0, 0, width, height);
+
+                const blob = await canvasToBlob(canvas, 'image/jpeg', JPEG_QUALITY);
+                if (!blob) throw new Error("Could not encode frame");
+
+                const formData = new FormData();
+                formData.append('file', blob, 'image.jpg');
+                formData.append('requestId', String(requestId));
+
+                const response = await fetch('/frame', {
+                    method: 'POST',
+                    body: formData,
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                const elapsed = Math.round(performance.now() - startedAt);
+
+                statusDiv.innerText = `Live OCR • sent ${width}x${height}px • ${elapsed} ms`;
+
+                // Only display the newest completed result
+                if (requestId >= latestDisplayedRequestId) {
+                    latestDisplayedRequestId = requestId;
+                    const text = (data.text || "").trim();
+                    ocrTextEl.textContent = text || "No text found in this frame.";
+                }
+            } catch (error) {
+                console.error('Error sending frame:', error);
+                statusDiv.innerText = "Upload/OCR failed: " + error.message;
+                statusDiv.style.color = "red";
+            } finally {
+                isSending = false;
+            }
+        }
+        // Main loop to continuously send frames at a controlled rate
+        async function processingLoop() {
+            while (!stopped) {
+                if (!isSending) {
+                    await sendLatestFrame();
+                }
+                await new Promise(resolve => setTimeout(resolve, IDLE_DELAY_MS));
             }
         }
 
-        // Initialize
         startCamera();
     </script>
 </body>
