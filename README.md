@@ -30,7 +30,7 @@ On the frontend, a JavaScript-based web interface displays the live camera frame
 For remote access and testing across devices and networks, I also used Tailscale, enabling secure peer-to-peer connectivity without complex port forwarding or public deployment. This allowed seamless access to the FastAPI server from different devices during development and demonstration.
 
 <p align="center">
-  <img src="src/demo.gif" alt="Realtime OCR Demo" width="800"/>
+  <img src="src/demo.gif" alt="Realtime OCR Demo" width="300"/>
 </p>
 
 ### Tech Stack
